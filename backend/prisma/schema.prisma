@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReferralType {
+  basic
+  plus
+}
+
+enum CurrencyType {
+  ton
+  stars
+  gift
+}
+
+enum GameStatus {
+  betting
+  flying
+  crashed
+}
+
+enum TransactionType {
+  deposit
+  withdrawal
+  bet
+  win
+  referral_bonus
+  gift_conversion
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+  cancelled
+}
+
+enum ReferralEarningType {
+  deposit_commission
+  loss_commission
+}
+
+model User {
+  chatId        String      @id @map("chat_id") @db.VarChar(20)
+  username      String?     @db.VarChar(255)
+  firstname     String?     @db.VarChar(255)
+  lastname      String?     @db.VarChar(255)
+  active        Boolean     @default(true)
+  status        String?     @db.VarChar(100)
+  banned        Boolean     @default(false)
+  lastActivity  DateTime    @default(now()) @map("last_activity")
+  referrer      String?     @db.VarChar(20)
+  taskPoints    Int         @default(0) @map("task_points")
+  tonBalance    Decimal     @default(0) @map("ton_balance") @db.Decimal(18, 9)
+  starsBalance  Int         @default(0) @map("stars_balance")
+  tonWalletAddress String?   @map("ton_wallet_address") @db.VarChar(100)
+  referralType  ReferralType @default(basic) @map("referral_type")
+  tgLangCode    String?     @default("ru") @map("tg_lang_code") @db.VarChar(10)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  referrerUser  User?       @relation("UserReferrals", fields: [referrer], references: [chatId])
+  referrals     User[]      @relation("UserReferrals")
+
+  bets          Bet[]
+  userGifts     UserGift[]
+  transactions  Transaction[]
+  referralEarningsAsReferrer ReferralEarning[] @relation("ReferrerEarnings")
+  referralEarningsAsReferred ReferralEarning[] @relation("ReferredEarnings")
+
+  @@map("users")
+  // ✅ КРИТИЧЕСКАЯ БЕЗОПАСНОСТЬ: CHECK constraints добавляются через миграцию SQL
+  // Гарантирует, что баланс НИКОГДА не станет отрицательным на уровне БД
+  // См. миграцию: add_balance_check_constraints
+}
+
+model GameRound {
+  id              String      @id @default(uuid())
+  crashPoint      Decimal     @map("crash_point") @db.Decimal(8, 2)
+  serverSeed      String      @map("server_seed") @db.VarChar(128)
+  hashedServerSeed String     @map("hashed_server_seed") @db.VarChar(128)
+  status          GameStatus
+  houseFee        Decimal     @default(0.01) @map("house_fee") @db.Decimal(4, 3)
+  startTime       DateTime    @map("start_time")
+  endTime         DateTime?   @map("end_time")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  bets            Bet[]
+
+  @@map("game_rounds")
+}
+
+model Bet {
+  id          String      @id @default(uuid())
+  chatId      String      @map("chat_id") @db.VarChar(20)
+  roundId     String      @map("round_id")
+  amount      Decimal     @db.Decimal(18, 9)
+  currency    CurrencyType
+  giftId      String?     @map("gift_id")
+  cashoutAt   Decimal?    @map("cashout_at") @db.Decimal(8, 2)
+  cashedOut   Boolean     @default(false) @map("cashed_out")
+  profit      Decimal?    @db.Decimal(18, 9)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user        User        @relation(fields: [chatId], references: [chatId])
+  round       GameRound   @relation(fields: [roundId], references: [id])
+  gift        Gift?       @relation(fields: [giftId], references: [id])
+
+  // ✅ КРИТИЧЕСКАЯ БЕЗОПАСНОСТЬ: Уникальный индекс для защиты от множественных ставок
+  // Один пользователь может сделать только ОДНУ ставку в раунде
+  @@unique([chatId, roundId], name: "unique_user_bet_per_round")
+  @@map("bets")
+}
+
+model Gift {
+  id                    String      @id @default(uuid())
+  telegramGiftId        BigInt      @unique @map("telegram_gift_id")
+  name                  String      @db.VarChar(255)
+  stickerFileId         String      @map("sticker_file_id") @db.VarChar(255)
+  originalPrice         Int         @map("original_price")
+  ourPrice              Int         @map("our_price")
+  convertStars          Int         @map("convert_stars")
+  limited               Boolean     @default(false)
+  availabilityTotal     Int?        @map("availability_total")
+  availabilityRemains   Int?        @map("availability_remains")
+  active                Boolean     @default(true)
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  userGifts             UserGift[]
+  bets                  Bet[]
+
+  @@map("gifts")
+}
+
+model UserGift {
+  id                    String      @id @default(uuid())
+  chatId                String      @map("chat_id") @db.VarChar(20)
+  giftId                String      @map("gift_id")
+  telegramMessageId     Int         @map("telegram_message_id")
+  receivedAt            DateTime    @default(now()) @map("received_at")
+  displayOnProfile      Boolean     @default(false) @map("display_on_profile")
+  converted             Boolean     @default(false)
+
+  // Relations
+  user                  User        @relation(fields: [chatId], references: [chatId])
+  gift                  Gift        @relation(fields: [giftId], references: [id])
+
+  @@map("user_gifts")
+}
+
+model Transaction {
+  id            String              @id @default(uuid())
+  chatId        String              @map("chat_id") @db.VarChar(20)
+  type          TransactionType
+  amount        Decimal             @db.Decimal(18, 9)
+  currency      CurrencyType
+  status        TransactionStatus   @default(pending)
+  externalId    String?             @map("external_id") @db.VarChar(255)
+  metadata      Json?
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  // Relations
+  user          User                @relation(fields: [chatId], references: [chatId])
+  referralEarnings ReferralEarning[]
+
+  @@map("transactions")
+}
+
+model ReferralEarning {
+  id              String                @id @default(uuid())
+  referrerChatId  String                @map("referrer_chat_id") @db.VarChar(20)
+  referredChatId  String                @map("referred_chat_id") @db.VarChar(20)
+  transactionId   String                @map("transaction_id")
+  amount          Decimal               @db.Decimal(18, 9)
+  currency        CurrencyType
+  type            ReferralEarningType
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  // Relations
+  referrer        User                  @relation("ReferrerEarnings", fields: [referrerChatId], references: [chatId])
+  referred        User                  @relation("ReferredEarnings", fields: [referredChatId], references: [chatId])
+  transaction     Transaction           @relation(fields: [transactionId], references: [id])
+
+  @@map("referral_earnings")
+}
+
+model DepositMonitoringState {
+  id          String   @id @default("singleton")
+  network     String   @db.VarChar(20)  // 'mainnet' | 'testnet'
+  startTime   Int      @map("start_time")  // Unix timestamp (с какого момента обрабатываем транзакции)
+  lastCheckAt DateTime @map("last_check_at") @default(now())
+  isRunning   Boolean  @default(false) @map("is_running")
+  errorCount  Int      @default(0) @map("error_count")
+  lastError   String?  @map("last_error") @db.Text
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("deposit_monitoring_state")
+}

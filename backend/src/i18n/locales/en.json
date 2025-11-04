@@ -1,0 +1,28 @@
+{
+  "welcome": {
+    "title": "Welcome to Crash Game Bot, {name}!",
+    "description": "💰 **What awaits you:**\n• 🎮 Exciting Crash game with real stakes\n• 🎁 Exclusive Telegram gifts store\n• 💎 Bet with TON, Stars and gifts\n• 📈 Provably Fair - honest gaming\n• 👥 Referral program\n\n🎯 Choose an action from the menu below and start playing!"
+  },
+  "help": {
+    "title": "Crash Game Bot Help",
+    "description": "🎮 **How to play:**\n• Place bets in TON, Stars or gifts\n• Watch the multiplier grow\n• Cash out before the rocket crashes!\n\n💰 **Balance top-up:**\n• Click \"Deposit\" to add funds\n• TON and Telegram Stars supported\n\n🎁 **Gifts store:**\n• Buy exclusive Telegram gifts\n• Give to friends or use for betting\n\n❓ **Need help?** Contact support through our channel.\n\n🎯 Choose an action from the menu:"
+  },
+  "buttons": {
+    "play": "🎮 Play",
+    "channel": "📢 Our Channel",
+    "deposit": "💰 Deposit"
+  },
+  "errors": {
+    "banned": "❌ Your account is banned. Contact administrator.",
+    "general": "❌ An error occurred. Please try again later."
+  },
+  "referral": {
+    "detected": "🎉 You came through a referral link!",
+    "bonus_earned": "🎁 <b>Referral Bonus!</b>\n\nYour referral made a deposit.\nYou earned: <b>{amount} TON</b>\n\n💰 Bonus credited to your balance!"
+  },
+  "deposit": {
+    "success": "✅ <b>Deposit successful!</b>\n\n💰 Amount: <b>{amount} TON</b>\n🔗 Transaction: <code>{txHash}</code>\n\n💎 Funds available for play!",
+    "stars_success": "✅ <b>Stars credited successfully!</b>\n\n⭐ Amount: <b>{amount} Stars</b>\n💰 Balance: <b>{balance} Stars</b>\n\n💎 Funds available for play!",
+    "error": "❌ <b>Deposit Error</b>\n\n⚠️ Reason: {reason}\n💰 Amount: {amount} TON\n\nIf you believe this is an error, contact support."
+  }
+}
